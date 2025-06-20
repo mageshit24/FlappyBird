@@ -1,6 +1,7 @@
 **Flappy Bird – Java Game Project**
 
 This is a simple **Flappy Bird** game made using **Java Swing**. It includes jumping, pipes, scoring, and game-over logic. You can run it using the provided `.jar` file or by executing 'App.java' file.
+https://mageshit24.github.io/FlappyBird/
 
 **Requirements:**
 
