@@ -4,7 +4,7 @@ This is a simple **Flappy Bird** game made using **Java Swing**. It includes jum
 
 **Requirements:**
 
-- Java JDK 24 (Latest Version).
+- Java JDK 24 (Latest Version I use) or 17+ LTS version for better performance.
 - No extra libraries needed (only Java's built-in Swing and AWT).
 - Java must be added to your system PATH.
 
