@@ -6,8 +6,15 @@
   <title>Flappy Bird - Java Game</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
+      width: 100%;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+
+    body {
       background: linear-gradient(to bottom, #88c8f2, #ffffff);
       font-family: 'Arial', sans-serif;
       color: #333;
@@ -76,6 +83,20 @@
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+
+    .github-footer {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      color: #333;
+    }
+
+    .github-footer img {
+      width: 18px;
+      height: 18px;
+      filter: invert(0.5);
+    }
   </style>
 </head>
 <body>
@@ -113,7 +134,14 @@
     </ul>
 
     <footer>
-      Created by <strong><a href="https://github.com/mageshit24" target="_blank">mageshit24</a></strong> | Inspired by Flappy Bird
+      Created by 
+      <strong>
+        <a class="github-footer" href="https://github.com/mageshit24" target="_blank">
+          <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/github.svg" alt="GitHub Logo" />
+          mageshit24
+        </a>
+      </strong> 
+      | Inspired by Flappy Bird
     </footer>
   </div>
 </body>
