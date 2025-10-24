@@ -10,7 +10,7 @@ https://mageshit24.github.io/FlappyBird/
 - Java must be added to your system PATH.
 
 **Project Files**
-
+```plain text
 FlappyBird/
 ├── .idea/                   # IntelliJ IDEA project settings
 ├── resources/
@@ -20,7 +20,8 @@ FlappyBird/
 │   └── FlappyBird.java      # Core game logic and rendering
 ├── .gitignore               # Specifies files and directories to be ignored by Git
 ├── FlappyBird.iml           # IntelliJ IDEA module file
-├── FlappyBird.jar           # Compiled executable JAR file
+└── FlappyBird.jar           # Compiled executable JAR file
+```
 
 **How to Run the Game?**
 
