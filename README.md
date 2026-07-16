@@ -1,19 +1,22 @@
 # 🐦 Flappy Bird — Java Edition
 
-A faithful recreation of the classic **Flappy Bird** game, built from scratch in **Java Swing/AWT**. Flap through gaps in scrolling pipes, rack up your score, and try to beat your own high score — all running in a lightweight native desktop window.
+A polished recreation of the classic **Flappy Bird**, built from scratch in **Java Swing/AWT**. Flap through a gap in scrolling pipes, chase a persistent high score, and watch the game get harder the longer you survive — all in a lightweight native desktop window.
 
-🔗 **[Play the landing page / demo info](https://mageshit24.github.io/FlappyBird/)**
+🔗 **[Landing page / demo info](https://mageshit24.github.io/FlappyBird/)**
 
 ---
 
 ## ✨ Features
 
-- 🕹️ Smooth physics-based bird movement (gravity + flap velocity)
-- 🚧 Procedurally generated, randomly-spaced pipe pairs
+- 🕹️ Smooth, gravity-based bird physics with a subtle tilt animation
+- 🚧 Procedurally generated pipe pairs with randomized gaps
+- 📈 **Progressive difficulty** — pipes gradually speed up and the gap narrows as your score climbs
+- 🏆 **Persistent high score** — saved to a small file in your home directory and shown on the HUD
+- ▶️ **Start screen** and **pause menu** (`P` key) — no more being dropped straight into gameplay
 - 💥 Pixel-accurate collision detection
-- 🧮 Live score tracking (+0.5 per pipe passed)
+- ☁️ Drawn parallax clouds and a ground strip for extra visual depth
+- 🎨 Redesigned HUD: score panel, "Best" tracker, and clean game-over/pause overlays
 - 🔁 Instant restart on Game Over — no need to relaunch
-- 🖼️ Custom sprite assets for bird, pipes, and background
 - ⚡ Runs at a smooth 60 FPS game loop
 - 📦 Ships as a standalone runnable `.jar` — no installation needed
 
@@ -23,9 +26,10 @@ A faithful recreation of the classic **Flappy Bird** game, built from scratch in
 
 | Component | Technology |
 |---|---|
-| Language | Java |
-| Rendering / UI | Java Swing & AWT |
+| Language | Java (targets JDK 17+, tested on JDK 21/24) |
+| Rendering / UI | Java Swing & AWT (`Graphics2D`) |
 | Game Loop | `javax.swing.Timer` (60 FPS) |
+| Persistence | `java.util.Properties` file in the user's home directory |
 | Packaging | Executable `.jar` |
 | IDE Project | IntelliJ IDEA (`.iml`) |
 
@@ -36,22 +40,28 @@ A faithful recreation of the classic **Flappy Bird** game, built from scratch in
 ```
 FlappyBird/
 ├── resources/
-│   └── assets/              # Image assets used in the game (bird, pipes, background)
+│   └── assets/              # Source-of-truth image assets (bird, pipes, background)
 ├── src/
-│   ├── App.java             # Entry point — creates the game window
-│   ├── FlappyBird.java      # Core game logic, physics, rendering, collision
-│   └── assets/              # Bundled assets for the compiled build
+│   ├── App.java              # Entry point — builds the window, starts the game safely
+│   ├── FlappyBird.java        # Game panel: state machine, physics, rendering, input
+│   ├── Bird.java               # Encapsulated bird entity (position, velocity, tilt)
+│   ├── Pipe.java                # Encapsulated pipe entity (position, collision bounds)
+│   ├── Constants.java            # All tunable game constants in one place
+│   ├── HighScoreManager.java      # Safe, sandboxed high-score persistence
+│   └── assets/                     # Bundled assets for the compiled build (classpath)
 ├── index.html                # GitHub Pages landing page for the project
 ├── FlappyBird.iml            # IntelliJ IDEA module file
 └── FlappyBird.jar            # Compiled, ready-to-run executable
 ```
+
+Each class now has a single, clear responsibility instead of one file owning everything, and every field is access-controlled (see **Code Quality & Security** below).
 
 ---
 
 ## 🚀 Getting Started
 
 ### Requirements
-- Java JDK 17+ (LTS recommended) or newer — developed and tested on JDK 24
+- Java JDK 17+ (LTS recommended) — developed and tested on JDK 21 and JDK 24
 - No external libraries needed — pure Java Swing & AWT
 - Java must be available on your system `PATH`
 
@@ -63,11 +73,11 @@ java -jar FlappyBird.jar
 ### Option 2 — Compile and run from source
 ```bash
 cd src
-javac App.java
+javac *.java
 java App
 ```
 
-The game window will open immediately — no build tools required.
+The game window opens on the start screen — press `SPACE` to begin.
 
 ---
 
@@ -75,38 +85,42 @@ The game window will open immediately — no build tools required.
 
 | Key | Action |
 |---|---|
-| `SPACE` | Flap / Jump |
-| `SPACE` (after Game Over) | Restart the game |
+| `SPACE` | Start the game / Flap / Restart after Game Over |
+| `P` | Pause / Resume |
 
 ---
 
 ## 🧠 How It Works
 
 - A `Timer`-driven game loop updates physics and repaints the canvas 60 times per second.
-- Gravity continuously pulls the bird down; pressing `SPACE` gives it an upward velocity boost.
-- A second timer spawns a new top/bottom pipe pair every 1.5 seconds at a randomized vertical gap.
-- Each frame checks for rectangle-based collision between the bird and active pipes, and ends the game on contact or if the bird falls off-screen.
-- Score increases by 0.5 each time the bird's x-position clears a pipe.
+- An explicit `GameState` (`START`, `PLAYING`, `PAUSED`, `GAME_OVER`) drives input handling and rendering, instead of a single ambiguous boolean flag.
+- Gravity continuously pulls the bird down; `SPACE` gives it an upward flap impulse, and the sprite tilts based on vertical velocity.
+- A second timer spawns a new top/bottom pipe pair every 1.5 seconds at a randomized vertical gap — while `PLAYING` only.
+- Every `DIFFICULTY_STEP` points scored, pipe speed increases and the gap shrinks slightly, up to a capped maximum/minimum so the game never becomes unfair.
+- Rectangle-based collision checks run each frame between the bird and every active pipe.
+- On Game Over, the score is compared against the saved high score; a new best is written to disk immediately.
 
 ---
 
-## 📸 Screenshots
+## 🔒 Code Quality & Security
 
-<img width="338" alt="Flappy Bird gameplay" src="https://github.com/user-attachments/assets/7cc597be-dd3c-41dd-996f-0843d1d3a552" />
-<img width="338" alt="Flappy Bird gameplay - pipes" src="https://github.com/user-attachments/assets/7cfaf854-57ff-4f9b-81eb-fb3b89bb27ff" />
-<img width="338" alt="Flappy Bird gameplay - scoring" src="https://github.com/user-attachments/assets/7c36215c-0998-4613-a45d-9fd719624c21" />
-<img width="338" alt="Flappy Bird gameplay - game over" src="https://github.com/user-attachments/assets/aabcdc5b-a4b0-435b-97e5-cf524fb119d4" />
-<img width="338" alt="Flappy Bird gameplay - restart" src="https://github.com/user-attachments/assets/9aaa8a68-99dc-4e40-9279-55002e8b9b75" />
+A few things were tightened up compared to the original version:
+
+- **Encapsulation / controlled visibility** — every entity field (`Bird`, `Pipe`, game state in `FlappyBird`) is `private`. External code can no longer reach in and mutate position, velocity, or score directly; all changes go through methods that can validate/clamp values.
+- **Centralized, immutable configuration** — `Constants.java` holds every tunable value as `public static final`, with a private constructor so the class can never be instantiated. No more magic numbers scattered across game logic.
+- **Safe asset loading** — missing or corrupt image assets now fail with a clear, specific error instead of an unhandled `NullPointerException` deep inside Swing internals.
+- **No leaked stack traces** — `App.java` no longer declares `throws Exception` on `main`. Startup failures are caught, logged via `java.util.logging`, and shown to the player as a clean dialog — internal paths and class names are never printed to a raw console trace.
+- **Sandboxed file I/O** — `HighScoreManager` only ever reads/writes a single, hard-coded file name inside the current user's home directory. No file path is ever built from external input, so there's no path-traversal exposure. All I/O uses try-with-resources so file handles are always released, and a corrupted save file safely resets to 0 instead of crashing the game.
+- **Correct threading** — the Swing UI is now built on the Event Dispatch Thread via `SwingUtilities.invokeLater`, which the original entry point skipped.
 
 ---
 
 ## 🔮 Future Improvements
 
-- 🏆 Persistent high-score tracking (local file or simple save state)
 - 🔊 Sound effects for flap, score, and collision
-- 🎚️ Difficulty scaling (pipe speed/gap shrinks as score increases)
-- 🖥️ Pause menu and start screen
+- 🖼️ Animated bird sprite (wing-flap frames) instead of a static image
 - 🌐 Web-playable version (e.g. via a Java-to-WASM or Canvas/JS port)
+- ⚙️ In-game settings screen (difficulty presets, mute toggle)
 
 ---
 
@@ -121,3 +135,17 @@ The game window will open immediately — no build tools required.
 ## 📄 License
 
 This project is open source — feel free to use, modify, and build on it. Consider adding a `LICENSE` file (e.g. MIT) to make the terms explicit.
+
+**Screenshots:**
+
+![image](https://github.com/user-attachments/assets/7cc597be-dd3c-41dd-996f-0843d1d3a552)
+
+or
+
+![image](https://github.com/user-attachments/assets/7cfaf854-57ff-4f9b-81eb-fb3b89bb27ff)
+
+![image](https://github.com/user-attachments/assets/7c36215c-0998-4613-a45d-9fd719624c21)
+
+![image](https://github.com/user-attachments/assets/aabcdc5b-a4b0-435b-97e5-cf524fb119d4)
+
+![image](https://github.com/user-attachments/assets/9aaa8a68-99dc-4e40-9279-55002e8b9b75)
