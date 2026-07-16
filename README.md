@@ -138,14 +138,9 @@ This project is open source — feel free to use, modify, and build on it. Consi
 
 **Screenshots:**
 
-![image](https://github.com/user-attachments/assets/7cc597be-dd3c-41dd-996f-0843d1d3a552)
+<img width="453" height="846" alt="image" src="https://github.com/user-attachments/assets/0e62a44d-5289-4e78-b330-87188a48d4a1" />
+<img width="450" height="837" alt="image" src="https://github.com/user-attachments/assets/4632e53f-8a4a-4c9f-aaa7-fc27a8551423" />
+<img width="457" height="840" alt="image" src="https://github.com/user-attachments/assets/bca624cb-065c-42c5-aac9-dd5c4a82a61a" />
+<img width="447" height="842" alt="image" src="https://github.com/user-attachments/assets/e168e35b-bf60-4d53-a9a2-0ce476656ace" />
 
-or
 
-![image](https://github.com/user-attachments/assets/7cfaf854-57ff-4f9b-81eb-fb3b89bb27ff)
-
-![image](https://github.com/user-attachments/assets/7c36215c-0998-4613-a45d-9fd719624c21)
-
-![image](https://github.com/user-attachments/assets/aabcdc5b-a4b0-435b-97e5-cf524fb119d4)
-
-![image](https://github.com/user-attachments/assets/9aaa8a68-99dc-4e40-9279-55002e8b9b75)
