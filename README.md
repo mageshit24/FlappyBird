@@ -1,9 +1,9 @@
 <div align="center">
 
-# 🐦 Flappy Bird — Java Edition
+# 🐦 Flappy Bird - Java Edition
 
 **A polished recreation of the classic Flappy Bird, built from scratch in Java Swing/AWT.**
-Flap through a gap in scrolling pipes, chase a persistent high score, and watch the game get harder the longer you survive — all in a lightweight native desktop window.
+Flap through a gap in scrolling pipes, chase a persistent high score, and watch the game get harder the longer you survive - all in a lightweight native desktop window.
 
 [![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](#-getting-started)
 [![Swing](https://img.shields.io/badge/UI-Swing%20%26%20AWT-4C9BE8?style=for-the-badge&logo=java&logoColor=white)](#-tech-stack)
@@ -38,15 +38,15 @@ Flap through a gap in scrolling pipes, chase a persistent high score, and watch 
 |---|---|
 | 🕹️ | Smooth, gravity-based bird physics with a subtle tilt animation |
 | 🚧 | Procedurally generated pipe pairs with randomized gaps |
-| 📈 | **Progressive difficulty** — pipes speed up and the gap narrows as your score climbs |
-| 🏆 | **Persistent high score** — saved locally and shown on the HUD |
+| 📈 | **Progressive difficulty** - pipes speed up and the gap narrows as your score climbs |
+| 🏆 | **Persistent high score** - saved locally and shown on the HUD |
 | ▶️ | **Start screen** and **pause menu** (`P` key) |
 | 💥 | Pixel-accurate collision detection |
 | ☁️ | Drawn parallax clouds and a ground strip for extra visual depth |
-| 🎨 | Redesigned HUD — score panel, "Best" tracker, clean overlays |
-| 🔁 | Instant restart on Game Over — no need to relaunch |
+| 🎨 | Redesigned HUD - score panel, "Best" tracker, clean overlays |
+| 🔁 | Instant restart on Game Over - no need to relaunch |
 | ⚡ | Runs at a smooth 60 FPS game loop |
-| 📦 | Ships as a standalone runnable `.jar` — no installation needed |
+| 📦 | Ships as a standalone runnable `.jar` - no installation needed |
 
 ---
 
@@ -86,7 +86,7 @@ FlappyBird/
 └── FlappyBird.jar               # Compiled, ready-to-run executable
 ```
 
-> Each class has a single, clear responsibility, and every field is access-controlled — see [Code Quality & Security](#-code-quality--security).
+> Each class has a single, clear responsibility, and every field is access-controlled - see [Code Quality & Security](#-code-quality--security).
 
 ---
 
@@ -141,12 +141,12 @@ The game window opens on the start screen — press `SPACE` to begin.
 ## 🔒 Code Quality & Security
 
 <table>
-<tr><td>🔐</td><td><b>Encapsulation</b> — every entity field (<code>Bird</code>, <code>Pipe</code>, game state) is <code>private</code>. All changes go through methods that can validate/clamp values.</td></tr>
-<tr><td>🧱</td><td><b>Centralized config</b> — <code>Constants.java</code> holds every tunable value as <code>public static final</code>, with a private constructor. No magic numbers scattered through game logic.</td></tr>
-<tr><td>🖼️</td><td><b>Safe asset loading</b> — missing or corrupt images fail with a clear, specific error instead of an unhandled <code>NullPointerException</code>.</td></tr>
-<tr><td>🚫</td><td><b>No leaked stack traces</b> — startup failures are caught, logged, and shown as a clean dialog instead of a raw console trace.</td></tr>
-<tr><td>🗂️</td><td><b>Sandboxed file I/O</b> — <code>HighScoreManager</code> only reads/writes one fixed filename in the user's home directory. No path-traversal exposure; a corrupted save file safely resets to 0.</td></tr>
-<tr><td>🧵</td><td><b>Correct threading</b> — the Swing UI is built on the Event Dispatch Thread via <code>SwingUtilities.invokeLater</code>.</td></tr>
+<tr><td>🔐</td><td><b>Encapsulation</b> - every entity field (<code>Bird</code>, <code>Pipe</code>, game state) is <code>private</code>. All changes go through methods that can validate/clamp values.</td></tr>
+<tr><td>🧱</td><td><b>Centralized config</b> - <code>Constants.java</code> holds every tunable value as <code>public static final</code>, with a private constructor. No magic numbers scattered through game logic.</td></tr>
+<tr><td>🖼️</td><td><b>Safe asset loading</b> - missing or corrupt images fail with a clear, specific error instead of an unhandled <code>NullPointerException</code>.</td></tr>
+<tr><td>🚫</td><td><b>No leaked stack traces</b> - startup failures are caught, logged, and shown as a clean dialog instead of a raw console trace.</td></tr>
+<tr><td>🗂️</td><td><b>Sandboxed file I/O</b> - <code>HighScoreManager</code> only reads/writes one fixed filename in the user's home directory. No path-traversal exposure; a corrupted save file safely resets to 0.</td></tr>
+<tr><td>🧵</td><td><b>Correct threading</b> - the Swing UI is built on the Event Dispatch Thread via <code>SwingUtilities.invokeLater</code>.</td></tr>
 </table>
 
 ---
@@ -190,7 +190,7 @@ The game window opens on the start screen — press `SPACE` to begin.
 
 ## 📄 License
 
-This project is open source — feel free to use, modify, and build on it. Consider adding a `LICENSE` file (e.g. MIT) to make the terms explicit.
+This project is open source - feel free to use, modify, and build on it. Consider adding a `LICENSE` file (e.g. MIT) to make the terms explicit.
 
 <div align="center">
 
