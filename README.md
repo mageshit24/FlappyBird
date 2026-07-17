@@ -94,10 +94,10 @@ FlappyBird/
 
 ### Requirements
 - ☕ Java JDK 17+ (tested on JDK 21 and 24)
-- 🚫 No external libraries — pure Java Swing & AWT
+- 🚫 No external libraries - pure Java Swing & AWT
 - Java must be on your system `PATH`
 
-### ▶️ Option 1 — Run the prebuilt JAR
+### ▶️ Option 1 - Run the prebuilt JAR
 ```bash
 java -jar FlappyBird.jar
 ```
@@ -109,7 +109,7 @@ javac *.java
 java App
 ```
 
-The game window opens on the start screen — press `SPACE` to begin.
+The game window opens on the start screen - press `SPACE` to begin.
 
 ---
 
@@ -131,7 +131,7 @@ The game window opens on the start screen — press `SPACE` to begin.
 - A `Timer`-driven game loop updates physics and repaints the canvas 60 times per second.
 - An explicit `GameState` (`START`, `PLAYING`, `PAUSED`, `GAME_OVER`) drives input and rendering, instead of one ambiguous boolean flag.
 - Gravity continuously pulls the bird down; `SPACE` gives it an upward flap impulse, and the sprite tilts based on vertical velocity.
-- A second timer spawns a new pipe pair every 1.5 seconds at a randomized gap — while `PLAYING` only.
+- A second timer spawns a new pipe pair every 1.5 seconds at a randomized gap - while `PLAYING` only.
 - Every `DIFFICULTY_STEP` points scored, pipe speed increases and the gap shrinks slightly, capped so the game never becomes unfair.
 - Rectangle-based collision checks run each frame between the bird and every active pipe.
 - On Game Over, the score is compared against the saved high score, and a new best is written to disk immediately.
