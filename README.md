@@ -115,6 +115,15 @@ A few things were tightened up compared to the original version:
 
 ---
 
+## 📸 Screenshots
+
+<img width="360" alt="Flappy Bird start screen" src="https://github.com/user-attachments/assets/0e62a44d-5289-4e78-b330-87188a48d4a1" />
+<img width="360" alt="Flappy Bird gameplay" src="https://github.com/user-attachments/assets/4632e53f-8a4a-4c9f-aaa7-fc27a8551423" />
+<img width="360" alt="Flappy Bird pause screen" src="https://github.com/user-attachments/assets/bca624cb-065c-42c5-aac9-dd5c4a82a61a" />
+<img width="360" alt="Flappy Bird game over screen" src="https://github.com/user-attachments/assets/e168e35b-bf60-4d53-a9a2-0ce476656ace" />
+
+---
+
 ## 🔮 Future Improvements
 
 - 🔊 Sound effects for flap, score, and collision
@@ -135,12 +144,3 @@ A few things were tightened up compared to the original version:
 ## 📄 License
 
 This project is open source — feel free to use, modify, and build on it. Consider adding a `LICENSE` file (e.g. MIT) to make the terms explicit.
-
-**Screenshots:**
-
-<img width="453" height="846" alt="image" src="https://github.com/user-attachments/assets/0e62a44d-5289-4e78-b330-87188a48d4a1" />
-<img width="450" height="837" alt="image" src="https://github.com/user-attachments/assets/4632e53f-8a4a-4c9f-aaa7-fc27a8551423" />
-<img width="457" height="840" alt="image" src="https://github.com/user-attachments/assets/bca624cb-065c-42c5-aac9-dd5c4a82a61a" />
-<img width="447" height="842" alt="image" src="https://github.com/user-attachments/assets/e168e35b-bf60-4d53-a9a2-0ce476656ace" />
-
-
