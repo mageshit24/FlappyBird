@@ -1,3 +1,4 @@
+
 import java.awt.Image;
 import java.awt.Rectangle;
 
@@ -6,9 +7,9 @@ import java.awt.Rectangle;
  *
  * Represents a single pipe obstacle (top or bottom half of a pair).
  *
- * As with Bird, fields are private with explicit accessors so the
- * game loop can't accidentally corrupt a pipe's state (e.g. marking
- * it "passed" twice and double-counting score) from outside this class.
+ * As with Bird, fields are private with explicit accessors so the game loop
+ * can't accidentally corrupt a pipe's state (e.g. marking it "passed" twice and
+ * double-counting score) from outside this class.
  */
 public class Pipe {
 
@@ -28,7 +29,9 @@ public class Pipe {
         this.passed = false;
     }
 
-    /** Moves the pipe left by the given speed (pixels per tick). */
+    /**
+     * Moves the pipe left by the given speed (pixels per tick).
+     */
     public void move(int speed) {
         x -= speed;
     }

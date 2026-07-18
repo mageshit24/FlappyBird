@@ -1,21 +1,22 @@
+
 import java.awt.Image;
 import java.awt.Rectangle;
 
 /**
  * Bird.java
  *
- * Represents the player-controlled bird sprite: its position, size,
- * image, and vertical velocity.
+ * Represents the player-controlled bird sprite: its position, size, image, and
+ * vertical velocity.
  *
- * Encapsulation note: every field is `private`. In the original code
- * these fields were package-private (no modifier at all), which meant
- * any class added later in the same package could silently mutate a
- * bird's position or velocity with no validation. Here, the only way
- * to change state is through the setter methods below, which is where
- * we can safely clamp values (e.g. never let velocity exceed terminal
- * fall speed, never let the bird fly above the top of the board).
+ * Encapsulation note: every field is `private`. In the original code these
+ * fields were package-private (no modifier at all), which meant any class added
+ * later in the same package could silently mutate a bird's position or velocity
+ * with no validation. Here, the only way to change state is through the setter
+ * methods below, which is where we can safely clamp values (e.g. never let
+ * velocity exceed terminal fall speed, never let the bird fly above the top of
+ * the board).
  */
-public class Bird {
+public final class Bird {
 
     private int x;
     private int y;
@@ -33,7 +34,9 @@ public class Bird {
         resetPosition();
     }
 
-    /** Resets the bird to its starting position and clears velocity. */
+    /**
+     * Resets the bird to its starting position and clears velocity.
+     */
     public void resetPosition() {
         this.x = Constants.BIRD_START_X;
         this.y = Constants.BIRD_START_Y;
@@ -41,7 +44,9 @@ public class Bird {
         this.tiltDegrees = 0;
     }
 
-    /** Applies one physics tick of gravity + the current velocity. */
+    /**
+     * Applies one physics tick of gravity + the current velocity.
+     */
     public void applyGravity() {
         velocityY = Math.min(velocityY + Constants.GRAVITY, Constants.MAX_FALL_SPEED);
         y += (int) velocityY;
@@ -54,7 +59,9 @@ public class Bird {
         tiltDegrees = targetTilt;
     }
 
-    /** Gives the bird an upward flap impulse. */
+    /**
+     * Gives the bird an upward flap impulse.
+     */
     public void flap() {
         velocityY = Constants.FLAP_VELOCITY;
     }

@@ -1,3 +1,5 @@
+
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -21,59 +23,81 @@ import javax.swing.Timer;
 /**
  * FlappyBird.java
  *
- * Core game panel: owns the game loop, physics, rendering, input, and
- * the overall game-state machine (START -> PLAYING -> PAUSED / GAME_OVER).
+ * Core game panel: owns the game loop, physics, rendering, input, and the
+ * overall game-state machine (START -> PLAYING -> PAUSED / GAME_OVER).
  *
- * Changes from the original version:
- *   - Introduces an explicit GameState enum instead of a single boolean
- *     `gameOver` flag, so start/pause/restart flows are unambiguous.
- *   - All previously package-private mutable fields are now private;
- *     external classes can no longer reach in and mutate game state.
- *   - Difficulty scales gradually with score (pipes speed up and the
- *     gap narrows), instead of staying flat for the whole game.
- *   - Adds a pause feature (P key), a start screen, and a redesigned
- *     game-over / HUD overlay with the persisted high score.
- *   - Adds simple drawn (non-image) polish: parallax clouds, a ground
- *     strip, a subtle score panel, and bird tilt - all vector-drawn,
- *     so no new image assets are required.
- *   - Resource loading is wrapped in error handling instead of letting
- *     a missing asset throw an unhandled NullPointerException.
+ * Changes from the original version: - Introduces an explicit GameState enum
+ * instead of a single boolean `gameOver` flag, so start/pause/restart flows are
+ * unambiguous. - All previously package-private mutable fields are now private;
+ * external classes can no longer reach in and mutate game state. - Difficulty
+ * scales gradually with score (pipes speed up and the gap narrows), instead of
+ * staying flat for the whole game. - Adds a pause feature (P key), a start
+ * screen, and a redesigned game-over / HUD overlay with the persisted high
+ * score. - Adds simple drawn (non-image) polish: parallax clouds, a ground
+ * strip, a subtle score panel, and bird tilt - all vector-drawn, so no new
+ * image assets are required. - Resource loading is wrapped in error handling
+ * instead of letting a missing asset throw an unhandled NullPointerException.
+ *
+ * New in this revision (Java 25 / feature update): - Sound effects (flap,
+ * score, hit, power-up pickup, shield break) via SoundManager, with an M-key
+ * mute toggle. Fully optional at runtime - see SoundManager for the
+ * no-audio-device fallback. - Two collectible power-ups: a one-hit Shield and a
+ * temporary Slow-Mo that eases pipe speed. Active effects are modeled as a
+ * sealed PowerUpEffect interface (Shield/SlowMo records) so every switch over
+ * an effect is compiler-checked for exhaustiveness, and effect data is read via
+ * record deconstruction patterns (Java 21+ pattern matching for switch).
  */
-public class FlappyBird extends JPanel implements ActionListener, KeyListener {
+public final class FlappyBird extends JPanel implements ActionListener, KeyListener {
 
     // Standard Swing/Serializable requirement; this panel is never actually
     // serialized, but declaring it silences a compiler warning and follows
     // best practice for any Serializable subclass.
     private static final long serialVersionUID = 1L;
 
-    /** Simple state machine for the game's lifecycle. */
+    /**
+     * Simple state machine for the game's lifecycle.
+     */
     private enum GameState {
         START, PLAYING, PAUSED, GAME_OVER
     }
 
     // ---- Images ----
-    private final Image backgroundImg;
-    private final Image birdImg;
-    private final Image topPipeImg;
-    private final Image bottomPipeImg;
+    // transient: java.awt.Image isn't Serializable, and this panel is never
+    // actually serialized (see serialVersionUID note above) - these fields
+    // would be meaningless in a serialized snapshot anyway.
+    private final transient Image backgroundImg;
+    private final transient Image birdImg;
+    private final transient Image topPipeImg;
+    private final transient Image bottomPipeImg;
 
     // ---- Entities ----
-    private Bird bird;
-    private final List<Pipe> pipes = new ArrayList<>();
+    // transient for the same reason: live game-session state (custom entity
+    // types, collections of them) isn't meant to survive serialization.
+    private transient Bird bird;
+    private final transient List<Pipe> pipes = new ArrayList<>();
+    private final transient List<PowerUp> powerUps = new ArrayList<>();
+    private final transient List<PowerUpEffect> activeEffects = new ArrayList<>();
     private final Random random = new Random();
 
     // ---- Timers ----
     private final Timer gameLoop;
     private final Timer placePipeTimer;
+    private final Timer placePowerUpTimer;
 
     // ---- State ----
     private GameState state = GameState.START;
     private double score = 0;
     private int pipeSpeed = Constants.BASE_PIPE_SPEED;
     private int pipeGap = Constants.BASE_PIPE_GAP;
+    // Brief grace period after a shield absorbs a hit, so the same
+    // still-overlapping pipe can't immediately end the game.
+    private long invulnerableUntil = 0L;
+
+    // ---- Audio ----
+    private final transient SoundManager soundManager = new SoundManager();
 
     // ---- Persistence ----
-    private final HighScoreManager highScoreManager = new HighScoreManager();
+    private final transient HighScoreManager highScoreManager = new HighScoreManager();
 
     // ---- Decorative parallax clouds (purely visual, no gameplay effect) ----
     private final int[] cloudX = new int[4];
@@ -98,19 +122,44 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
             }
         });
 
+        // One-shot timer that reschedules itself with a fresh random delay
+        // each time it fires, so power-ups spawn at an irregular interval
+        // rather than a fixed, learnable cadence.
+        placePowerUpTimer = new Timer(randomPowerUpDelay(), null);
+        placePowerUpTimer.setRepeats(false);
+        placePowerUpTimer.addActionListener(e -> {
+            if (state == GameState.PLAYING) {
+                placePowerUp();
+            }
+            placePowerUpTimer.setInitialDelay(randomPowerUpDelay());
+            placePowerUpTimer.restart();
+        });
+
         gameLoop = new Timer(1000 / Constants.FPS, this);
     }
 
-    /** Starts the render/animation timers. Call once the panel is on-screen. */
+    /**
+     * Starts the render/animation timers. Call once the panel is on-screen.
+     */
     public void start() {
         gameLoop.start();
         placePipeTimer.start();
+        placePowerUpTimer.restart();
     }
 
     /**
-     * Loads an image from the classpath. Missing/corrupt assets no longer
-     * crash the whole application with a raw NullPointerException - we
-     * fail loudly but gracefully with a clear message instead.
+     * Picks the next power-up spawn delay, randomized within the configured
+     * range.
+     */
+    private int randomPowerUpDelay() {
+        int span = Constants.POWERUP_MAX_SPAWN_MS - Constants.POWERUP_MIN_SPAWN_MS;
+        return Constants.POWERUP_MIN_SPAWN_MS + random.nextInt(span + 1);
+    }
+
+    /**
+     * Loads an image from the classpath. Missing/corrupt assets no longer crash
+     * the whole application with a raw NullPointerException - we fail loudly
+     * but gracefully with a clear message instead.
      */
     private Image loadImage(String resourcePath) {
         java.net.URL url = getClass().getResource(resourcePath);
@@ -141,10 +190,21 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         pipes.add(bottomPipe);
     }
 
+    /**
+     * Spawns a random-kind power-up at a random height, clear of the ground and
+     * top margin.
+     */
+    private void placePowerUp() {
+        PowerUpKind kind = random.nextBoolean() ? PowerUpKind.SHIELD : PowerUpKind.SLOW_MO;
+        int margin = 40;
+        int usableHeight = Constants.BOARD_HEIGHT - Constants.GROUND_HEIGHT - Constants.POWERUP_SIZE - margin * 2;
+        int y = margin + (usableHeight > 0 ? random.nextInt(usableHeight) : 0);
+        powerUps.add(new PowerUp(kind, Constants.BOARD_WIDTH, y, Constants.POWERUP_SIZE, Constants.POWERUP_SIZE));
+    }
+
     // ------------------------------------------------------------------
     // Rendering
     // ------------------------------------------------------------------
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -162,15 +222,21 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
             g.drawImage(pipe.getImage(), pipe.getX(), pipe.getY(), pipe.getWidth(), pipe.getHeight(), null);
         }
 
+        drawPowerUps(g);
         drawGround(g);
         drawBird(g);
         drawHud(g);
+        drawEffectBadges(g);
 
         switch (state) {
-            case START -> drawStartOverlay(g);
-            case PAUSED -> drawPausedOverlay(g);
-            case GAME_OVER -> drawGameOverOverlay(g);
-            default -> { /* PLAYING: no overlay */ }
+            case START ->
+                drawStartOverlay(g);
+            case PAUSED ->
+                drawPausedOverlay(g);
+            case GAME_OVER ->
+                drawGameOverOverlay(g);
+            default -> {
+                /* PLAYING: no overlay */ }
         }
     }
 
@@ -185,6 +251,48 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         }
     }
 
+    /**
+     * Draws every power-up currently on the board with its kind-specific icon.
+     */
+    private void drawPowerUps(Graphics2D g) {
+        for (PowerUp powerUp : powerUps) {
+            switch (powerUp.getKind()) {
+                case SHIELD ->
+                    drawShieldIcon(g, powerUp.getX(), powerUp.getY(), powerUp.getWidth());
+                case SLOW_MO ->
+                    drawSlowMoIcon(g, powerUp.getX(), powerUp.getY(), powerUp.getWidth());
+            }
+        }
+    }
+
+    /**
+     * Vector-drawn shield pickup icon: a filled circle with a ring outline. No
+     * image asset needed.
+     */
+    private void drawShieldIcon(Graphics2D g, int x, int y, int size) {
+        g.setColor(new Color(80, 200, 255, 235));
+        g.fillOval(x, y, size, size);
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(2f));
+        g.drawOval(x + 4, y + 4, size - 8, size - 8);
+    }
+
+    /**
+     * Vector-drawn slow-mo pickup icon: a filled circle with a simple clock
+     * face. No image asset needed.
+     */
+    private void drawSlowMoIcon(Graphics2D g, int x, int y, int size) {
+        g.setColor(new Color(190, 120, 255, 235));
+        g.fillOval(x, y, size, size);
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(2f));
+        int cx = x + size / 2;
+        int cy = y + size / 2;
+        g.drawOval(cx - size / 3, cy - size / 3, size * 2 / 3, size * 2 / 3);
+        g.drawLine(cx, cy, cx, cy - size / 4);
+        g.drawLine(cx, cy, cx + size / 5, cy);
+    }
+
     private void drawGround(Graphics2D g) {
         int groundY = Constants.BOARD_HEIGHT - Constants.GROUND_HEIGHT;
         GradientPaint groundPaint = new GradientPaint(
@@ -197,9 +305,16 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
     }
 
     private void drawBird(Graphics2D g) {
-        java.awt.geom.AffineTransform old = g.getTransform();
         double cx = bird.getX() + bird.getWidth() / 2.0;
         double cy = bird.getY() + bird.getHeight() / 2.0;
+
+        if (isShieldActive()) {
+            int auraSize = (int) (Math.max(bird.getWidth(), bird.getHeight()) * 1.7);
+            g.setColor(new Color(80, 200, 255, 110));
+            g.fillOval((int) (cx - auraSize / 2.0), (int) (cy - auraSize / 2.0), auraSize, auraSize);
+        }
+
+        java.awt.geom.AffineTransform old = g.getTransform();
         g.rotate(Math.toRadians(bird.getTiltDegrees()), cx, cy);
         g.drawImage(bird.getImage(), bird.getX(), bird.getY(), bird.getWidth(), bird.getHeight(), null);
         g.setTransform(old);
@@ -224,11 +339,45 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         g.drawString("Best: " + highScoreManager.getHighScore(), 12, 24);
     }
 
+    /**
+     * Small "SHIELD" / "SLOW-MO Ns" pills under the score panel while effects
+     * are active.
+     */
+    private void drawEffectBadges(Graphics2D g) {
+        if (activeEffects.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        int badgeY = 64;
+        g.setFont(new Font("SansSerif", Font.BOLD, 13));
+        for (PowerUpEffect effect : activeEffects) {
+            String label = switch (effect) {
+                case PowerUpEffect.Shield ignored ->
+                    "SHIELD";
+                case PowerUpEffect.SlowMo(var expiresAt) ->
+                    "SLOW-MO " + Math.max(0, (expiresAt - now) / 1000 + 1) + "s";
+            };
+            Color accent = (effect instanceof PowerUpEffect.Shield)
+                    ? new Color(80, 200, 255)
+                    : new Color(190, 120, 255);
+
+            FontMetrics fm = g.getFontMetrics();
+            int textWidth = fm.stringWidth(label);
+            int panelX = Constants.BOARD_WIDTH / 2 - textWidth / 2 - 10;
+            g.setColor(new Color(0, 0, 0, 100));
+            g.fillRoundRect(panelX, badgeY, textWidth + 20, 22, 11, 11);
+            g.setColor(accent);
+            g.drawString(label, Constants.BOARD_WIDTH / 2 - textWidth / 2, badgeY + 16);
+            badgeY += 26;
+        }
+    }
+
     private void drawStartOverlay(Graphics2D g) {
         drawDimOverlay(g);
         drawCenteredTitle(g, "FLAPPY BIRD", -60);
         drawCenteredSubtitle(g, "Press SPACE to start", -10);
-        drawCenteredSubtitle(g, "P to pause  \u2022  SPACE to flap", 20);
+        drawCenteredSubtitle(g, "P to pause  \u2022  M to mute", 20);
+        drawCenteredSubtitle(g, "Grab \u25CF for a shield, a slow-mo boost", 50);
     }
 
     private void drawPausedOverlay(Graphics2D g) {
@@ -274,35 +423,151 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
     // ------------------------------------------------------------------
     // Physics / update loop
     // ------------------------------------------------------------------
-
+    /**
+     * One physics tick: gravity, clouds, difficulty, effect expiry, then moves
+     * and checks collisions for both pipes and power-ups. Pipe/ power-up speed
+     * is halved while Slow-Mo is active.
+     */
     private void move() {
         bird.applyGravity();
         moveClouds();
         applyDifficultyScaling();
+        expireEffects();
 
-        Iterator<Pipe> iterator = pipes.iterator();
-        while (iterator.hasNext()) {
-            Pipe pipe = iterator.next();
-            pipe.move(pipeSpeed);
+        int effectivePipeSpeed = isSlowMoActive()
+                ? (int) Math.max(1, Math.round(pipeSpeed * Constants.SLOW_MO_SPEED_MULTIPLIER))
+                : pipeSpeed;
+
+        Iterator<Pipe> pipeIterator = pipes.iterator();
+        while (pipeIterator.hasNext()) {
+            Pipe pipe = pipeIterator.next();
+            pipe.move(effectivePipeSpeed);
 
             if (pipe.isOffScreen()) {
-                iterator.remove();
+                pipeIterator.remove();
                 continue;
             }
 
             if (!pipe.isPassed() && pipe.isPassedBy(bird.getX())) {
                 pipe.markPassed();
                 score += 0.5;
+                soundManager.play(SoundManager.Effect.SCORE);
             }
 
             if (bird.getBounds().intersects(pipe.getBounds())) {
-                endGame();
+                handlePipeCollision();
+            }
+        }
+
+        Iterator<PowerUp> powerUpIterator = powerUps.iterator();
+        while (powerUpIterator.hasNext()) {
+            PowerUp powerUp = powerUpIterator.next();
+            powerUp.move(effectivePipeSpeed);
+
+            if (powerUp.isOffScreen()) {
+                powerUpIterator.remove();
+                continue;
+            }
+
+            if (bird.getBounds().intersects(powerUp.getBounds())) {
+                collectPowerUp(powerUp);
+                powerUpIterator.remove();
             }
         }
 
         if (bird.hasFallenBelow(Constants.BOARD_HEIGHT - Constants.GROUND_HEIGHT)) {
             endGame();
         }
+    }
+
+    /**
+     * A pipe hit either ends the game, or - if a shield is active - is absorbed
+     * instead.
+     */
+    private void handlePipeCollision() {
+        long now = System.currentTimeMillis();
+        if (now < invulnerableUntil) {
+            return; // still in the brief grace window right after a shield broke
+        }
+        if (consumeShield()) {
+            invulnerableUntil = now + Constants.POST_SHIELD_INVULN_MS;
+            soundManager.play(SoundManager.Effect.SHIELD_BREAK);
+            return;
+        }
+        endGame();
+    }
+
+    /**
+     * Converts a collected pickup into a timed PowerUpEffect, replacing any
+     * existing effect of the same kind.
+     */
+    private void collectPowerUp(PowerUp powerUp) {
+        soundManager.play(SoundManager.Effect.POWERUP);
+        long expiresAt = System.currentTimeMillis() + switch (powerUp.getKind()) {
+            case SHIELD ->
+                Constants.SHIELD_DURATION_MS;
+            case SLOW_MO ->
+                Constants.SLOW_MO_DURATION_MS;
+        };
+        PowerUpEffect effect = switch (powerUp.getKind()) {
+            case SHIELD ->
+                new PowerUpEffect.Shield(expiresAt);
+            case SLOW_MO ->
+                new PowerUpEffect.SlowMo(expiresAt);
+        };
+        // Refresh rather than stack: picking up the same kind again just
+        // extends it, instead of tracking multiple redundant instances.
+        activeEffects.removeIf(e -> e.getClass() == effect.getClass());
+        activeEffects.add(effect);
+    }
+
+    /**
+     * Drops any active effect whose timer has run out. Called once per tick.
+     */
+    private void expireEffects() {
+        long now = System.currentTimeMillis();
+        activeEffects.removeIf(effect -> now >= effect.expiresAt());
+    }
+
+    /**
+     * Removes and consumes the active Shield effect, if any. Returns whether
+     * one was consumed.
+     */
+    private boolean consumeShield() {
+        Iterator<PowerUpEffect> it = activeEffects.iterator();
+        while (it.hasNext()) {
+            if (it.next() instanceof PowerUpEffect.Shield) {
+                it.remove();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether a Shield effect is currently active (drives both collision
+     * handling and the aura visual).
+     */
+    private boolean isShieldActive() {
+        for (PowerUpEffect effect : activeEffects) {
+            if (effect instanceof PowerUpEffect.Shield) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether a Slow-Mo effect is currently active (drives the reduced pipe
+     * speed).
+     */
+    private boolean isSlowMoActive() {
+        for (PowerUpEffect effect : activeEffects) {
+            if (effect instanceof PowerUpEffect.SlowMo) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void moveClouds() {
@@ -315,7 +580,9 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         }
     }
 
-    /** Gradually raises the difficulty as the player's score increases. */
+    /**
+     * Gradually raises the difficulty as the player's score increases.
+     */
     private void applyDifficultyScaling() {
         int level = (int) (score / Constants.DIFFICULTY_STEP);
         pipeSpeed = Math.min(Constants.BASE_PIPE_SPEED + level, Constants.MAX_PIPE_SPEED);
@@ -332,23 +599,29 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
         highScoreManager.reportScore((int) score);
         gameLoop.stop();
         placePipeTimer.stop();
+        placePowerUpTimer.stop();
+        soundManager.play(SoundManager.Effect.HIT);
     }
 
     private void restartGame() {
         bird.resetPosition();
         pipes.clear();
+        powerUps.clear();
+        activeEffects.clear();
+        invulnerableUntil = 0L;
         score = 0;
         pipeSpeed = Constants.BASE_PIPE_SPEED;
         pipeGap = Constants.BASE_PIPE_GAP;
         state = GameState.PLAYING;
         gameLoop.start();
         placePipeTimer.start();
+        placePowerUpTimer.setInitialDelay(randomPowerUpDelay());
+        placePowerUpTimer.restart();
     }
 
     // ------------------------------------------------------------------
     // Input handling
     // ------------------------------------------------------------------
-
     @Override
     public void actionPerformed(ActionEvent e) {
         if (state == GameState.PLAYING) {
@@ -360,9 +633,14 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_SPACE -> handleSpace();
-            case KeyEvent.VK_P -> handlePauseToggle();
-            default -> { /* ignore other keys */ }
+            case KeyEvent.VK_SPACE ->
+                handleSpace();
+            case KeyEvent.VK_P ->
+                handlePauseToggle();
+            case KeyEvent.VK_M ->
+                soundManager.toggleMuted();
+            default -> {
+                /* ignore other keys */ }
         }
     }
 
@@ -372,9 +650,14 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
                 state = GameState.PLAYING;
                 start();
             }
-            case PLAYING -> bird.flap();
-            case GAME_OVER -> restartGame();
-            default -> { /* PAUSED: ignore flap while paused */ }
+            case PLAYING -> {
+                bird.flap();
+                soundManager.play(SoundManager.Effect.FLAP);
+            }
+            case GAME_OVER ->
+                restartGame();
+            default -> {
+                /* PAUSED: ignore flap while paused */ }
         }
     }
 
@@ -383,10 +666,12 @@ public class FlappyBird extends JPanel implements ActionListener, KeyListener {
             state = GameState.PAUSED;
             gameLoop.stop();
             placePipeTimer.stop();
+            placePowerUpTimer.stop();
         } else if (state == GameState.PAUSED) {
             state = GameState.PLAYING;
             gameLoop.start();
             placePipeTimer.start();
+            placePowerUpTimer.restart();
         }
     }
 

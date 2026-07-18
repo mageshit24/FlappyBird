@@ -1,3 +1,4 @@
+
 /**
  * Constants.java
  *
@@ -56,14 +57,36 @@ public final class Constants {
     // ---- Frame rate ----
     public static final int FPS = 60;
 
+    // ---- Power-ups ----
+    public static final int POWERUP_SIZE = 26;
+    public static final int POWERUP_MIN_SPAWN_MS = 8000;
+    public static final int POWERUP_MAX_SPAWN_MS = 14000;
+    public static final long SHIELD_DURATION_MS = 8000;
+    public static final long SLOW_MO_DURATION_MS = 4000;
+    public static final double SLOW_MO_SPEED_MULTIPLIER = 0.5;
+    // Brief invulnerability after a shield breaks, so the bird can't take
+    // a second hit from the same pipe before it clears the overlap.
+    public static final long POST_SHIELD_INVULN_MS = 600;
+
     // ---- Persistence ----
     // File lives in the user's own home directory only - never a path
     // supplied by external/untrusted input (see HighScoreManager).
     public static final String HIGH_SCORE_FILE_NAME = ".flappybird_highscore.properties";
+    // Cap on any score value written to disk. The in-game score can't
+    // realistically reach this, but clamping defensively means a future
+    // scoring bug can never write out an absurd/corrupt value.
+    public static final int MAX_PERSISTABLE_SCORE = 1_000_000;
 
     // ---- Asset paths (classpath-relative, bundled inside the jar) ----
     public static final String BACKGROUND_IMG = "/assets/Background.png";
     public static final String BIRD_IMG = "/assets/Bird.png";
     public static final String TOP_PIPE_IMG = "/assets/TopPipe.png";
     public static final String BOTTOM_PIPE_IMG = "/assets/BottomPipe.png";
+
+    // ---- Sound effect paths (classpath-relative, bundled inside the jar) ----
+    public static final String FLAP_SFX = "/assets/flap.wav";
+    public static final String SCORE_SFX = "/assets/score.wav";
+    public static final String HIT_SFX = "/assets/hit.wav";
+    public static final String POWERUP_SFX = "/assets/powerup.wav";
+    public static final String SHIELD_BREAK_SFX = "/assets/shield_break.wav";
 }

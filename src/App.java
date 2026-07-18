@@ -1,3 +1,4 @@
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
@@ -7,19 +8,17 @@ import javax.swing.SwingUtilities;
 /**
  * App.java
  *
- * Application entry point. Builds the game window and starts the
- * game panel.
+ * Application entry point. Builds the game window and starts the game panel.
  *
- * Security / robustness fix: the original `main` declared
- * `throws Exception`, which meant any failure (e.g. a missing image
- * asset) would print an uncaught stack trace - including local file
- * paths and internal class names - straight to the console and crash
- * with no user-friendly message. Startup is now wrapped so failures
- * are logged and shown as a clean dialog instead of a raw trace.
+ * Security / robustness fix: the original `main` declared `throws Exception`,
+ * which meant any failure (e.g. a missing image asset) would print an uncaught
+ * stack trace - including local file paths and internal class names - straight
+ * to the console and crash with no user-friendly message. Startup is now
+ * wrapped so failures are logged and shown as a clean dialog instead of a raw
+ * trace.
  *
- * Swing components must be created on the Event Dispatch Thread (EDT);
- * this now uses SwingUtilities.invokeLater() for that, which the
- * original code skipped.
+ * Swing components must be created on the Event Dispatch Thread (EDT); this now
+ * uses SwingUtilities.invokeLater() for that, which the original code skipped.
  */
 public class App {
 

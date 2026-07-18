@@ -5,7 +5,7 @@
 **A polished recreation of the classic Flappy Bird, built from scratch in Java Swing/AWT.**
 Flap through a gap in scrolling pipes, chase a persistent high score, and watch the game get harder the longer you survive - all in a lightweight native desktop window.
 
-[![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](#-getting-started)
+[![Java](https://img.shields.io/badge/Java-25%20LTS-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](#-getting-started)
 [![Swing](https://img.shields.io/badge/UI-Swing%20%26%20AWT-4C9BE8?style=for-the-badge&logo=java&logoColor=white)](#-tech-stack)
 [![Build](https://img.shields.io/badge/Build-Jar-2E8B57?style=for-the-badge&logo=apache-maven&logoColor=white)](#-getting-started)
 [![License](https://img.shields.io/badge/License-Open%20Source-informational?style=for-the-badge)](#-license)
@@ -47,6 +47,9 @@ Flap through a gap in scrolling pipes, chase a persistent high score, and watch 
 | 🔁 | Instant restart on Game Over - no need to relaunch |
 | ⚡ | Runs at a smooth 60 FPS game loop |
 | 📦 | Ships as a standalone runnable `.jar` - no installation needed |
+| 🔊 | **Sound effects** - flap, score, hit, and power-up cues, with an `M` mute toggle |
+| 🛡️ | **Shield power-up** - absorbs one pipe collision instead of ending the run |
+| ⏱️ | **Slow-Mo power-up** - temporarily eases pipe speed for breathing room |
 
 ---
 
@@ -56,12 +59,13 @@ Flap through a gap in scrolling pipes, chase a persistent high score, and watch 
 
 | Component | Technology |
 |:---:|:---:|
-| Language | Java (JDK 17+, tested on 21 / 24) |
+| Language | Java (JDK 21+, targets 25 LTS - sealed interfaces, records, pattern matching) |
 | Rendering | Java Swing & AWT (`Graphics2D`) |
+| Audio | `javax.sound.sampled` (`Clip`) |
 | Game Loop | `javax.swing.Timer` @ 60 FPS |
-| Persistence | `java.util.Properties` file |
+| Persistence | `java.util.Properties` file, atomic write |
 | Packaging | Executable `.jar` |
-| IDE Project | IntelliJ IDEA (`.iml`) |
+| IDE Project | IntelliJ IDEA (`.iml`, language level 25) |
 
 </div>
 
@@ -78,9 +82,13 @@ FlappyBird/
 │   ├── FlappyBird.java          # Game panel: state machine, physics, rendering, input
 │   ├── Bird.java                 # Encapsulated bird entity (position, velocity, tilt)
 │   ├── Pipe.java                  # Encapsulated pipe entity (position, collision bounds)
-│   ├── Constants.java              # All tunable game constants in one place
-│   ├── HighScoreManager.java        # Safe, sandboxed high-score persistence
-│   └── assets/                       # Bundled assets for the compiled build
+│   ├── PowerUp.java                # Collectible power-up entity on the board
+│   ├── PowerUpKind.java              # SHIELD / SLOW_MO pickup kind
+│   ├── PowerUpEffect.java             # Sealed interface + records for active timed effects
+│   ├── SoundManager.java               # Loads & plays sound effects, mute-safe, device-safe
+│   ├── Constants.java                   # All tunable game constants in one place
+│   ├── HighScoreManager.java              # Safe, sandboxed, atomic high-score persistence
+│   └── assets/                             # Bundled assets for the compiled build
 ├── index.html                 # GitHub Pages landing page
 ├── FlappyBird.iml              # IntelliJ IDEA module file
 └── FlappyBird.jar               # Compiled, ready-to-run executable
@@ -93,8 +101,8 @@ FlappyBird/
 ## 🚀 Getting Started
 
 ### Requirements
-- ☕ Java JDK 17+ (tested on JDK 21 and 24)
-- 🚫 No external libraries - pure Java Swing & AWT
+- ☕ Java JDK 21+ (targets JDK 25 LTS; also builds fine on 21/24)
+- 🚫 No external libraries - pure Java Swing, AWT & `javax.sound.sampled`
 - Java must be on your system `PATH`
 
 ### ▶️ Option 1 - Run the prebuilt JAR
@@ -121,6 +129,7 @@ The game window opens on the start screen - press `SPACE` to begin.
 |:---:|---|
 | `SPACE` | Start the game / Flap / Restart after Game Over |
 | `P` | Pause / Resume |
+| `M` | Mute / Unmute sound effects |
 
 </div>
 
@@ -135,6 +144,10 @@ The game window opens on the start screen - press `SPACE` to begin.
 - Every `DIFFICULTY_STEP` points scored, pipe speed increases and the gap shrinks slightly, capped so the game never becomes unfair.
 - Rectangle-based collision checks run each frame between the bird and every active pipe.
 - On Game Over, the score is compared against the saved high score, and a new best is written to disk immediately.
+- A third timer spawns a Shield or Slow-Mo pickup at an irregular interval (8-14s). Colliding with one activates a timed effect, modeled as a sealed `PowerUpEffect` (`Shield` / `SlowMo` records) so effect handling is exhaustive and type-safe:
+    - **Shield** absorbs the next pipe collision instead of ending the run, then breaks (with a short invulnerability window so the same pipe can't immediately re-trigger it).
+    - **Slow-Mo** halves effective pipe speed for a few seconds.
+- `SoundManager` plays short cues for flap/score/hit/pickup/shield-break via `javax.sound.sampled`, and degrades to silent no-ops if no audio device is available - it never blocks or crashes gameplay.
 
 ---
 
@@ -145,8 +158,12 @@ The game window opens on the start screen - press `SPACE` to begin.
 <tr><td>🧱</td><td><b>Centralized config</b> - <code>Constants.java</code> holds every tunable value as <code>public static final</code>, with a private constructor. No magic numbers scattered through game logic.</td></tr>
 <tr><td>🖼️</td><td><b>Safe asset loading</b> - missing or corrupt images fail with a clear, specific error instead of an unhandled <code>NullPointerException</code>.</td></tr>
 <tr><td>🚫</td><td><b>No leaked stack traces</b> - startup failures are caught, logged, and shown as a clean dialog instead of a raw console trace.</td></tr>
-<tr><td>🗂️</td><td><b>Sandboxed file I/O</b> - <code>HighScoreManager</code> only reads/writes one fixed filename in the user's home directory. No path-traversal exposure; a corrupted save file safely resets to 0.</td></tr>
+<tr><td>🗂️</td><td><b>Sandboxed, atomic file I/O</b> - <code>HighScoreManager</code> only reads/writes one fixed filename in the user's home directory. No path-traversal exposure; saves go through a temp file + atomic move so a crash mid-write can never corrupt the score file; a corrupted or hand-edited file safely resets to 0.</td></tr>
+<tr><td>🔢</td><td><b>Clamped persistence</b> - any score written to disk is clamped to a sane maximum, so a future scoring bug can't persist an absurd or corrupt value.</td></tr>
+<tr><td>🔏</td><td><b>Owner-only permissions</b> - on POSIX file systems the high-score file is written with <code>rw-------</code> so other local users can't read or tamper with it (skipped safely on Windows, which has no POSIX permission model).</td></tr>
+<tr><td>🔊</td><td><b>Fail-safe audio</b> - <code>SoundManager</code> loads every clip from a fixed classpath resource only, and catches every failure mode of <code>javax.sound.sampled</code> (missing asset, unsupported format, no audio device/line) so a machine with no sound hardware still runs the full game, just silently.</td></tr>
 <tr><td>🧵</td><td><b>Correct threading</b> - the Swing UI is built on the Event Dispatch Thread via <code>SwingUtilities.invokeLater</code>.</td></tr>
+<tr><td>🧩</td><td><b>Exhaustive effect handling</b> - active power-up effects are a sealed <code>PowerUpEffect</code> interface (<code>Shield</code> / <code>SlowMo</code> records); every <code>switch</code> over an effect is compiler-checked, so adding a new effect kind without updating every consumer fails the build instead of misbehaving at runtime.</td></tr>
 </table>
 
 ---
@@ -168,10 +185,10 @@ The game window opens on the start screen - press `SPACE` to begin.
 
 ## 🔮 Future Improvements
 
-- [ ] 🔊 Sound effects for flap, score, and collision
 - [ ] 🖼️ Animated bird sprite (wing-flap frames)
 - [ ] 🌐 Web-playable version (Java-to-WASM or Canvas/JS port)
-- [ ] ⚙️ In-game settings screen (difficulty presets, mute toggle)
+- [ ] ⚙️ In-game settings screen (difficulty presets, volume slider)
+- [ ] 🏅 Local leaderboard (top N scores, not just a single best)
 
 ---
 
