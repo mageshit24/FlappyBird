@@ -1,16 +1,7 @@
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.net.URL;
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
+import module java.base;
+import module java.desktop;
+import module java.logging;
 
 /**
  * SoundManager.java

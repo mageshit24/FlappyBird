@@ -1,6 +1,5 @@
 
-import java.awt.Image;
-import java.awt.Rectangle;
+import module java.desktop;
 
 /**
  * Pipe.java

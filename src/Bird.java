@@ -1,6 +1,7 @@
 
-import java.awt.Image;
-import java.awt.Rectangle;
+import java.util.Objects;
+
+import module java.desktop;
 
 /**
  * Bird.java
@@ -28,6 +29,11 @@ public final class Bird {
     private double tiltDegrees;
 
     public Bird(Image image) {
+        // JDK 25 (JEP 513): flexible constructor bodies let this null
+        // check run before super() - fail fast on a bad argument instead
+        // of finishing construction with a Bird that can never render.
+        Objects.requireNonNull(image, "Bird image must not be null");
+        super();
         this.image = image;
         this.width = Constants.BIRD_WIDTH;
         this.height = Constants.BIRD_HEIGHT;

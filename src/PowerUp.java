@@ -1,5 +1,5 @@
 
-import java.awt.Rectangle;
+import module java.desktop;
 
 /**
  * PowerUp.java

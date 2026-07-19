@@ -1,9 +1,6 @@
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
+import module java.desktop;
+import module java.logging;
 
 /**
  * App.java

@@ -1,24 +1,17 @@
+// JDK 25 (JEP 511): module import declarations pull in every exported
+// package of a module at once, instead of listing each type. java.desktop
+// covers AWT/Swing/sound; java.base covers util/io/net. Where two modules
+// export a same-named type, a single-type import is required to
+// disambiguate - the compiler rejects the ambiguous reference otherwise,
+// which is the intended safety net for this feature. Two collisions here:
+// java.util.Timer vs javax.swing.Timer, and java.util.List vs the legacy
+// AWT listbox component java.awt.List.
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.GradientPaint;
-import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
-import javax.swing.ImageIcon;
-import javax.swing.JPanel;
 import javax.swing.Timer;
+
+import module java.base;
+import module java.desktop;
 
 /**
  * FlappyBird.java
@@ -76,7 +69,7 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
     private transient Bird bird;
     private final transient List<Pipe> pipes = new ArrayList<>();
     private final transient List<PowerUp> powerUps = new ArrayList<>();
-    private final transient List<PowerUpEffect> activeEffects = new ArrayList<>();
+    private final transient ActiveEffects activeEffects = new ActiveEffects();
     private final Random random = new Random();
 
     // ---- Timers ----
@@ -104,7 +97,20 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
     private final int[] cloudY = new int[4];
 
     public FlappyBird() {
-        setPreferredSize(new java.awt.Dimension(Constants.BOARD_WIDTH, Constants.BOARD_HEIGHT));
+        // JDK 25 (JEP 513): flexible constructor bodies allow statements
+        // before an explicit super()/this() call, as long as they don't
+        // touch the instance under construction. Before JDK 25 this was a
+        // compile error - the superclass call had to be the very first
+        // statement, so a config sanity check like this had to happen
+        // after JPanel was already constructed. Failing fast here means
+        // a broken Constants configuration never gets as far as building
+        // a half-initialized JPanel.
+        if (Constants.BOARD_WIDTH <= 0 || Constants.BOARD_HEIGHT <= 0) {
+            throw new IllegalStateException("Board dimensions must be positive");
+        }
+        super();
+
+        setPreferredSize(new Dimension(Constants.BOARD_WIDTH, Constants.BOARD_HEIGHT));
         setFocusable(true);
         addKeyListener(this);
 
@@ -162,7 +168,7 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
      * but gracefully with a clear message instead.
      */
     private Image loadImage(String resourcePath) {
-        java.net.URL url = getClass().getResource(resourcePath);
+        URL url = getClass().getResource(resourcePath);
         if (url == null) {
             throw new IllegalStateException("Missing required game asset on classpath: " + resourcePath);
         }
@@ -308,13 +314,13 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
         double cx = bird.getX() + bird.getWidth() / 2.0;
         double cy = bird.getY() + bird.getHeight() / 2.0;
 
-        if (isShieldActive()) {
+        if (activeEffects.hasShield()) {
             int auraSize = (int) (Math.max(bird.getWidth(), bird.getHeight()) * 1.7);
             g.setColor(new Color(80, 200, 255, 110));
             g.fillOval((int) (cx - auraSize / 2.0), (int) (cy - auraSize / 2.0), auraSize, auraSize);
         }
 
-        java.awt.geom.AffineTransform old = g.getTransform();
+        AffineTransform old = g.getTransform();
         g.rotate(Math.toRadians(bird.getTiltDegrees()), cx, cy);
         g.drawImage(bird.getImage(), bird.getX(), bird.getY(), bird.getWidth(), bird.getHeight(), null);
         g.setTransform(old);
@@ -350,9 +356,9 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
         long now = System.currentTimeMillis();
         int badgeY = 64;
         g.setFont(new Font("SansSerif", Font.BOLD, 13));
-        for (PowerUpEffect effect : activeEffects) {
+        for (PowerUpEffect effect : activeEffects.snapshot()) {
             String label = switch (effect) {
-                case PowerUpEffect.Shield ignored ->
+                case PowerUpEffect.Shield _ ->
                     "SHIELD";
                 case PowerUpEffect.SlowMo(var expiresAt) ->
                     "SLOW-MO " + Math.max(0, (expiresAt - now) / 1000 + 1) + "s";
@@ -432,9 +438,9 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
         bird.applyGravity();
         moveClouds();
         applyDifficultyScaling();
-        expireEffects();
+        activeEffects.expire(System.currentTimeMillis());
 
-        int effectivePipeSpeed = isSlowMoActive()
+        int effectivePipeSpeed = activeEffects.hasSlowMo()
                 ? (int) Math.max(1, Math.round(pipeSpeed * Constants.SLOW_MO_SPEED_MULTIPLIER))
                 : pipeSpeed;
 
@@ -489,7 +495,7 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
         if (now < invulnerableUntil) {
             return; // still in the brief grace window right after a shield broke
         }
-        if (consumeShield()) {
+        if (activeEffects.consumeShield()) {
             invulnerableUntil = now + Constants.POST_SHIELD_INVULN_MS;
             soundManager.play(SoundManager.Effect.SHIELD_BREAK);
             return;
@@ -498,76 +504,17 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
     }
 
     /**
-     * Converts a collected pickup into a timed PowerUpEffect, replacing any
-     * existing effect of the same kind.
+     * Converts a collected pickup into a timed effect via ActiveEffects.
      */
     private void collectPowerUp(PowerUp powerUp) {
         soundManager.play(SoundManager.Effect.POWERUP);
-        long expiresAt = System.currentTimeMillis() + switch (powerUp.getKind()) {
-            case SHIELD ->
-                Constants.SHIELD_DURATION_MS;
-            case SLOW_MO ->
-                Constants.SLOW_MO_DURATION_MS;
-        };
-        PowerUpEffect effect = switch (powerUp.getKind()) {
-            case SHIELD ->
-                new PowerUpEffect.Shield(expiresAt);
-            case SLOW_MO ->
-                new PowerUpEffect.SlowMo(expiresAt);
-        };
-        // Refresh rather than stack: picking up the same kind again just
-        // extends it, instead of tracking multiple redundant instances.
-        activeEffects.removeIf(e -> e.getClass() == effect.getClass());
-        activeEffects.add(effect);
-    }
-
-    /**
-     * Drops any active effect whose timer has run out. Called once per tick.
-     */
-    private void expireEffects() {
         long now = System.currentTimeMillis();
-        activeEffects.removeIf(effect -> now >= effect.expiresAt());
-    }
-
-    /**
-     * Removes and consumes the active Shield effect, if any. Returns whether
-     * one was consumed.
-     */
-    private boolean consumeShield() {
-        Iterator<PowerUpEffect> it = activeEffects.iterator();
-        while (it.hasNext()) {
-            if (it.next() instanceof PowerUpEffect.Shield) {
-                it.remove();
-                return true;
-            }
+        switch (powerUp.getKind()) {
+            case SHIELD ->
+                activeEffects.activateShield(Constants.SHIELD_DURATION_MS, now);
+            case SLOW_MO ->
+                activeEffects.activateSlowMo(Constants.SLOW_MO_DURATION_MS, now);
         }
-        return false;
-    }
-
-    /**
-     * Whether a Shield effect is currently active (drives both collision
-     * handling and the aura visual).
-     */
-    private boolean isShieldActive() {
-        for (PowerUpEffect effect : activeEffects) {
-            if (effect instanceof PowerUpEffect.Shield) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Whether a Slow-Mo effect is currently active (drives the reduced pipe
-     * speed).
-     */
-    private boolean isSlowMoActive() {
-        for (PowerUpEffect effect : activeEffects) {
-            if (effect instanceof PowerUpEffect.SlowMo) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void moveClouds() {
@@ -584,11 +531,9 @@ public final class FlappyBird extends JPanel implements ActionListener, KeyListe
      * Gradually raises the difficulty as the player's score increases.
      */
     private void applyDifficultyScaling() {
-        int level = (int) (score / Constants.DIFFICULTY_STEP);
-        pipeSpeed = Math.min(Constants.BASE_PIPE_SPEED + level, Constants.MAX_PIPE_SPEED);
-        pipeGap = Math.max(
-                Constants.BASE_PIPE_GAP - level * Constants.GAP_SHRINK_PER_STEP,
-                Constants.MIN_PIPE_GAP);
+        Difficulty.Level level = Difficulty.forScore(score);
+        pipeSpeed = level.pipeSpeed();
+        pipeGap = level.pipeGap();
     }
 
     private void endGame() {
